@@ -10,7 +10,7 @@ def load_data():
     except Exception as e:
         st.error(f"Error al cargar el archivo de datos: {e}")
         return pd.DataFrame()  # Retorna un DataFrame vacío en caso de error
-    
+
 def show():
     # Carga los datos
     data = load_data()
@@ -19,6 +19,9 @@ def show():
 
     # Excluir la ciudad 'Hard Discount' de los datos
     data = data[data['Ciudad'].str.strip() != 'Hard Discount']
+
+    # Calcular la venta bruta
+    data['VentaBruta'] = data['ProductoTerminado'] + data['ProductoMaquilado']
 
     # Configuración de los filtros en la barra lateral
     st.sidebar.header("Filtros")
@@ -45,9 +48,6 @@ def show():
     # Aplicar filtro de ciudad si se selecciona (diferente a 'Todos')
     if city_filter != "Todos":
         filtered_data = filtered_data[filtered_data['Ciudad'] == city_filter]
-
-    # Calcula la venta bruta
-    filtered_data['VentaBruta'] = filtered_data['ProductoTerminado'] + filtered_data['ProductoMaquilado']
 
     # Calcular los valores totales para las tarjetas
     total_venta_bruta = filtered_data['VentaBruta'].sum()
@@ -111,8 +111,14 @@ def show():
     # Agrupa por punto de venta y ciudad, y suma la venta bruta
     ventas_por_punto = filtered_data.groupby(['Punto de Venta', 'Ciudad'])['VentaBruta'].sum().reset_index()
 
+    # Filtra los puntos de venta con venta bruta total diferente de cero
+    ventas_por_punto_no_cero = ventas_por_punto[ventas_por_punto['VentaBruta'] != 0]
+
     # Ordena por venta bruta en orden descendente y selecciona los top 5
-    top_5_puntos = ventas_por_punto.sort_values(by='VentaBruta', ascending=False).head(5)
+    top_5_puntos = ventas_por_punto_no_cero.sort_values(by='VentaBruta', ascending=False).head(5)
+
+    # Ordena por venta bruta en orden ascendente y selecciona los 5 peores
+    peores_5_puntos = ventas_por_punto_no_cero.sort_values(by='VentaBruta').head(5)
 
     # Agrupa por punto de venta y ciudad, y suma las devoluciones totales
     devoluciones_por_punto = filtered_data.groupby(['Punto de Venta', 'Ciudad'])['DevolucionesTotales'].sum().reset_index()
@@ -127,14 +133,55 @@ def show():
     }).reset_index()
 
     top_5_almacenes = ventas_por_almacen.sort_values(by='ProductoTerminado', ascending=False).head(5)
+    
     # Formatear las columnas como moneda
     top_5_puntos['VentaBruta'] = top_5_puntos['VentaBruta'].apply(lambda x: f"${x:,.2f}")
+    peores_5_puntos['VentaBruta'] = peores_5_puntos['VentaBruta'].apply(lambda x: f"${x:,.2f}")
     top_5_devoluciones['DevolucionesTotales'] = top_5_devoluciones['DevolucionesTotales'].apply(lambda x: f"${x:,.2f}")
 
     top_5_almacenes['ProductoTerminado'] = top_5_almacenes['ProductoTerminado'].apply(lambda x: f"${x:,.2f}")
     top_5_almacenes['ProductoMaquilado'] = top_5_almacenes['ProductoMaquilado'].apply(lambda x: f"${x:,.2f}")
 
+    # Agrupar por mes y año en los datos filtrados para la tendencia
+    ventas_mensuales = filtered_data.groupby(['Año', 'Mes'])['VentaBruta'].sum().reset_index()
 
+    # Ordenar por año y mes
+    ventas_mensuales = ventas_mensuales.sort_values(by=['Año', 'Mes'])
+
+    # Crear gráfico de línea para ventas mensuales
+    fig_tendencia = px.line(
+        ventas_mensuales,
+        x='Mes',
+        y='VentaBruta',
+        color='Año',
+        title='Tendencia de Venta Bruta Mensual',
+        labels={'Mes': 'Mes', 'VentaBruta': 'Venta Bruta'},
+        template='plotly_white'
+    )
+
+    fig_tendencia.update_layout(
+        xaxis=dict(tickvals=list(range(1, 13)), ticktext=meses_espanol),
+        yaxis_title='Venta Bruta'
+    )
+
+    # Agrupar por mes, año y almacén en los datos filtrados para la tendencia
+    ventas_mensuales_almacen = filtered_data.groupby(['Año', 'Mes', 'Almacen'])['VentaBruta'].sum().reset_index()
+
+    # Crear gráfico de línea para ventas mensuales por almacén
+    fig_tendencia_almacen = px.line(
+        ventas_mensuales_almacen,
+        x='Mes',
+        y='VentaBruta',
+        color='Almacen',
+        title='Tendencia de Venta Bruta Mensual por Almacen',
+        labels={'Mes': 'Mes', 'VentaBruta': 'Venta Bruta'},
+        template='plotly_white'
+    )
+
+    fig_tendencia_almacen.update_layout(
+        xaxis=dict(tickvals=list(range(1, 13)), ticktext=meses_espanol),
+        yaxis_title='Venta Bruta'
+    )
 
     # Crear la interfaz en columnas
     col1, col2, col3 = st.columns([1, 1, 1])
@@ -153,8 +200,6 @@ def show():
         
         # Crear la tabla resumen del Top 5 puntos de venta por devoluciones
         st.subheader("Top 5 Puntos de Venta por Devoluciones Totales")
-        
-        # Mostrar la tabla del top 5 de devoluciones
         st.dataframe(top_5_devoluciones, use_container_width=True, hide_index=True)
 
     with col3:
@@ -181,13 +226,24 @@ def show():
         unsafe_allow_html=True
         )
 
-        for i in range(5):
-            st.write("")
+        st.write("")
+        st.write("")
         
         st.subheader("Top 5 Venta Producto Terminado por Almacen")
-        # Mostrar la tabla del top 5 de devoluciones
+        # Mostrar la tabla del top 5 de almacenes
         st.dataframe(top_5_almacenes, use_container_width=True, hide_index=True)
 
+    # Crear una fila adicional para el gráfico de tendencia temporal
+    st.subheader("Tendencia de Venta Bruta Mensual")
+    st.plotly_chart(fig_tendencia, use_container_width=True)
+
+    # Crear una fila adicional para el gráfico de tendencia por almacén
+    st.subheader("Tendencia de Venta Bruta Mensual por Almacen")
+    st.plotly_chart(fig_tendencia_almacen, use_container_width=True)
+
+    # Crear una fila adicional para el gráfico de los peores puntos de venta
+    st.subheader("Peores 5 Puntos de Venta por Venta Bruta")
+    st.dataframe(peores_5_puntos, use_container_width=True, hide_index=True)
 
 if __name__ == "__main__":
     show()
