@@ -117,8 +117,8 @@ def show():
     # Ordena por venta bruta en orden descendente y selecciona los top 5
     top_5_puntos = ventas_por_punto_no_cero.sort_values(by='VentaBruta', ascending=False).head(5)
 
-    # Ordena por venta bruta en orden ascendente y selecciona los 5 peores
-    peores_5_puntos = ventas_por_punto_no_cero.sort_values(by='VentaBruta').head(5)
+    # Ordena por venta bruta en orden ascendente y selecciona todos los puntos con venta bruta diferente de cero
+    peores_puntos = ventas_por_punto_no_cero.sort_values(by='VentaBruta').reset_index(drop=True)
 
     # Agrupa por punto de venta y ciudad, y suma las devoluciones totales
     devoluciones_por_punto = filtered_data.groupby(['Punto de Venta', 'Ciudad'])['DevolucionesTotales'].sum().reset_index()
@@ -136,7 +136,7 @@ def show():
     
     # Formatear las columnas como moneda
     top_5_puntos['VentaBruta'] = top_5_puntos['VentaBruta'].apply(lambda x: f"${x:,.2f}")
-    peores_5_puntos['VentaBruta'] = peores_5_puntos['VentaBruta'].apply(lambda x: f"${x:,.2f}")
+    peores_puntos['VentaBruta'] = peores_puntos['VentaBruta'].apply(lambda x: f"${x:,.2f}")
     top_5_devoluciones['DevolucionesTotales'] = top_5_devoluciones['DevolucionesTotales'].apply(lambda x: f"${x:,.2f}")
 
     top_5_almacenes['ProductoTerminado'] = top_5_almacenes['ProductoTerminado'].apply(lambda x: f"${x:,.2f}")
@@ -241,9 +241,9 @@ def show():
     st.subheader("Tendencia de Venta Bruta Mensual por Almacen")
     st.plotly_chart(fig_tendencia_almacen, use_container_width=True)
 
-    # Crear una fila adicional para el gráfico de los peores puntos de venta
-    st.subheader("Peores 5 Puntos de Venta por Venta Bruta")
-    st.dataframe(peores_5_puntos, use_container_width=True, hide_index=True)
+    # Crear una fila adicional para la tabla de los peores puntos de venta
+    st.subheader("Peores Puntos de Venta por Venta Bruta (Diferente de Cero)")
+    st.dataframe(peores_puntos, use_container_width=True, height=400, hide_index=True)
 
 if __name__ == "__main__":
     show()
