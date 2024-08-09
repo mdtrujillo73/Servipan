@@ -5,6 +5,7 @@ from InformeGeneral import show as show_InformeGeneral
 from HardDiscount import show as show_HardDiscount
 from ProductoMaquiladoTerminado import show as show_ProductoMaquiladoTerminado
 from AnalisisDeVentasAnualesYMensuales import show as show_AnalisisAnualMensual
+from KPIEstimacion import show as show_KPIEstimacion
 
 # Clave de acceso
 ACCESS_KEY = 'Servipan2024'
@@ -64,7 +65,8 @@ def main():
         'Informe General',
         'Hard Discount',
         'Producto Maquilado-Terminado',
-        'Analisis Mensual-Anual'
+        'Analisis Mensual-Anual',
+        'Estimacion KPIs'
     ])
 
     # Mostrar el contenido correspondiente según la pestaña seleccionada
@@ -78,6 +80,8 @@ def main():
         show_AnalisisAnualMensual()
     elif pagina == 'Informe General':
         show_InformeGeneral()
+    elif pagina == 'Estimacion KPIs':
+        show_KPIEstimacion()
 
 if __name__ == "__main__":
     # Configura la página al principio
